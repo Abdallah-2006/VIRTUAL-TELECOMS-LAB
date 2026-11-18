@@ -1,0 +1,72 @@
+/* ==========================================================================
+   DESIGN TOKENS — change any value here and the whole app follows.
+   Palette is strictly grayscale (black → white). Only functional signal
+   colours (scope channels + patch cables) are chromatic, and they are
+   variables too: set them to grays if you want a fully monochrome UI.
+   ========================================================================== */
+:root {
+  /* shape — ONE radius for every rounded corner (circles stay circles) */
+  --radius: 2px;
+  --border-w: 1px;
+  --shadow: 0 1px 2px color-mix(in srgb, var(--gray-0) 22%, transparent);
+
+  /* gray scale: 0 = black … 12 = white */
+  --gray-0: #19292e;
+  --gray-1: #20282a;
+  --gray-2: #273438;
+  --gray-3: #334748;
+  --gray-4: #3c5155;
+  --gray-5: #526a62;
+  --gray-6: #687476;
+  --gray-7: #78908b;
+  --gray-8: #a2b3b1;
+  --gray-9: #d2dcd8;
+  --gray-10: #e7ebea;
+  --gray-11: #f2f4f1;
+  --gray-12: #ffffff;
+
+  /* semantic roles (point them at any gray or any colour) */
+  --page-bg: #e7ebea;
+  --surface: #f5f7f4;
+  --surface-2: #eef4f1;
+  --border: #c5ccca;
+  --text: #20282a;
+  --text-muted: #687476;
+  --focus: #168b7d;
+  --topbar-bg: #19292e;
+  --topbar-text: #e5ece9;
+
+  /* trainer faceplate (matches the reference photo: white panel, black print) */
+  --chassis: #273d43;
+  --panel-face: #d9dcd2;
+  --panel-line: #697974;
+  --panel-ink: #303d3d;
+  --module-face: #d6dad2;
+  --module-face-hover: #e3e6df;
+  --jack: #282e2e;
+  --jack-ring: #838a82;
+  --jack-hole: #1a2222;
+  --knob: #2f3838;
+  --knob-well: #d6dcda;
+  --knob-pointer: #f6f7ed;
+  --font-panel: "Helvetica Neue", Arial, "Liberation Sans", sans-serif;
+
+  /* oscilloscope + spectrum screens */
+  --scope-bg: #070d0e;
+  --scope-grid: #22312d;
+  --scope-grid-major: #526a62;
+  --scope-dot: #61776d;
+  --scope-hold: #e59b72;
+  --ch1: #d6bb51;
+  --ch2: #5fc2ad;
+  --ch3: #e37e68;
+  --ch4: #829ae0;
+
+  /* patch cables (functional colours, selectable in the UI) */
+  --cable-red: #b3362d;
+  --cable-black: #202124;
+  --cable-yellow: #c9a021;
+  --cable-green: #347c49;
+  --cable-blue: #2864a0;
+  --cable-white: #f3f0df;
+}

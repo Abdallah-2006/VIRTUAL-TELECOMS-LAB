@@ -1,0 +1,100 @@
+/* ==========================================================================
+   DESIGN PASS — flat, grayscale, photo-faithful faceplate. Everything reads
+   from tokens.css. No glows, no neon borders, one radius.
+   ========================================================================== */
+:root { color: var(--text); background: var(--page-bg); }
+body, .lab-shell { background: var(--page-bg); }
+button:focus-visible, select:focus-visible, input:focus-visible,
+[role="button"]:focus-visible, [role="slider"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* top bar */
+.topbar { background: var(--topbar-bg); color: var(--topbar-text); border-bottom: var(--border-w) solid var(--gray-0); }
+.topbar .toolbar-button, .topbar .icon-button, .topbar .mic-button { color: var(--topbar-text); background: transparent; border: var(--border-w) solid var(--gray-5); }
+.topbar .toolbar-button:hover, .topbar .icon-button:hover, .topbar .mic-button:hover { background: var(--gray-4); border-color: var(--gray-7); }
+.run-button { background: var(--gray-12); color: var(--gray-0); border: var(--border-w) solid var(--gray-12); }
+.run-button:hover:not(:disabled), .run-button.is-stop:hover:not(:disabled) { background: var(--gray-9); }
+.run-button.is-stop { background: var(--gray-0); color: var(--gray-12); border-color: var(--gray-12); }
+.sync-dot, .sync-dot.idle, .status-led, .status-led.amber, .project-pulse { background: var(--gray-12); box-shadow: none; }
+.sync-dot.idle, .status-led.amber { background: var(--gray-6); }
+
+/* cards / strips / modals */
+.instrument-control-panel, .module-readout, .project-modal, .instrument-panel, .connection-list, .app-toast {
+  background: var(--surface); border: var(--border-w) solid var(--border); color: var(--text); box-shadow: none;
+}
+.workspace-heading h1, .workspace-heading h1 > span, .workspace-heading h1 small { color: var(--text); }
+.module-diagnostic { background: var(--gray-11); color: var(--gray-0); border-left: 3px solid var(--gray-0); }
+
+/* ---- layout fixes: nothing overlaps the instruments any more ---- */
+.physical-trainer { height: auto; min-height: 0; margin-bottom: 20px; }
+.instrument-body { height: auto; overflow-x: auto; overflow-y: visible; background: var(--chassis); border: var(--border-w) solid var(--gray-0); box-shadow: none; }
+.emona-front-panel { height: auto; min-width: 900px; }
+.body-edge { color: var(--gray-8); }
+
+/* ---- faceplate (reference photo: white panel, black outlines, black jacks) ---- */
+.emona-front-panel rect { rx: calc(var(--radius) / 3); }
+.panel-body-shadow { fill: var(--chassis); stroke: var(--gray-0); filter: none; }
+.panel-metal { fill: var(--panel-face); stroke: var(--panel-line); stroke-width: 0.6; }
+.panel-inset { fill: none; stroke: var(--panel-line); stroke-width: 0.3; }
+.chassis-screw circle { fill: var(--gray-9); stroke: var(--gray-0); }
+.chassis-screw path { stroke: var(--gray-0); }
+.panel-header-title { font-family: var(--font-panel); font-weight: 800; font-size: 6.2px; letter-spacing: 0.02em; fill: var(--panel-ink); }
+.panel-header-subtitle, .panel-power text, .bay-label { font-family: var(--font-panel); fill: var(--panel-ink); }
+.panel-power circle:first-child { fill: var(--gray-0); stroke: var(--gray-0); }
+.panel-power .power-led { fill: var(--gray-12); stroke: var(--gray-0); filter: none; }
+.panel-bay rect, .panel-bay.bay-top rect, .panel-bay.bay-bottom rect { fill: var(--module-face); stroke: var(--panel-line); stroke-width: 0.5; }
+.bay-label { opacity: 0; }
+.module-face, .hardware-module:nth-child(odd) .module-face, .hardware-module.selected .module-face,
+.hardware-module.status-ready .module-face, .hardware-module.status-error .module-face { fill: var(--module-face); stroke: var(--panel-line); stroke-width: 0.5; filter: none; }
+.hardware-module:hover .module-face { fill: var(--module-face-hover); }
+.hardware-module.selected .module-face { stroke-width: 1; }
+.module-print-rule, .submodule-rule { stroke: var(--panel-line); stroke-width: 0.35; }
+.module-silkscreen { font-family: var(--font-panel); font-weight: 800; font-size: 3.9px; letter-spacing: 0; fill: var(--panel-ink); }
+.hardware-module.compact .module-silkscreen { font-size: 3.2px; }
+.submodule-label, .socket-print, .control-label, .control-value, .ambiguous-panel-mark text, .master-reference-print,
+.scope-input-title, .scope-input-label, .expansion-mark, .expansion-note, .ground-terminal text { font-family: var(--font-panel); fill: var(--panel-ink); }
+.socket-print { font-weight: 700; }
+.hardware-socket:hover .socket-print { fill: var(--gray-5); }
+.expansion-inset { fill: var(--gray-11); stroke: var(--panel-line); }
+.expansion-slot { fill: var(--gray-0); stroke: var(--gray-0); }
+.ground-rail { stroke: var(--gray-0); }
+.ground-terminal circle:first-child { fill: var(--gray-0); stroke: var(--gray-0); }
+.ground-terminal .ground-center { fill: var(--gray-12); }
+
+/* jacks: black body, light ring + hole like the photo */
+.analog-jack .socket-rim, .digital-jack .socket-rim, .scope-input .socket-rim { fill: var(--jack); stroke: var(--jack); stroke-width: 0.3; }
+.analog-jack .socket-metal, .digital-jack .socket-metal, .scope-input .socket-metal { fill: var(--jack); stroke: var(--jack-ring); stroke-width: 0.3; }
+.analog-jack .socket-bore, .digital-jack .socket-bore, .scope-input .socket-bore { fill: var(--jack-hole); stroke: none; }
+.analog-jack .socket-contact { fill: var(--gray-0); }
+.hardware-socket.is-connected .socket-metal, .scope-input.is-connected .socket-metal { fill: var(--gray-5); }
+.hardware-socket .socket-connected-ring { stroke: var(--gray-0); }
+.hardware-socket.is-compatible .socket-rim, .scope-input.is-compatible .socket-rim { stroke: var(--gray-0); stroke-width: 0.9; stroke-dasharray: 0.9 0.6; filter: none; }
+.socket-hit:focus-visible { fill: color-mix(in srgb, var(--gray-0) 12%, transparent); }
+.scope-input-rail { fill: var(--panel-face); stroke: var(--panel-line); stroke-width: 0.5; }
+.scope-input-title { font-size: 2.4px; font-weight: 800; }
+.scope-input-label { font-size: 2.8px; font-weight: 800; }
+
+/* knobs & switches */
+.knob-well { fill: var(--knob-well); stroke: var(--gray-0); }
+.knob-face { fill: var(--knob); stroke: var(--gray-0); }
+.knob-pointer { stroke: var(--knob-pointer); }
+.toggle-base { fill: var(--gray-2); stroke: var(--gray-0); }
+.toggle-rail { stroke: var(--gray-8); }
+.toggle-lever { fill: var(--gray-12); stroke: var(--gray-0); }
+.led-error .led-light { fill: var(--gray-0); stroke: var(--gray-0); filter: none; }
+
+/* cables: no glow, no coloured chrome around them */
+.cable-shadow { stroke: var(--gray-0); opacity: 0.18; }
+.cable-selected-trace { stroke: var(--gray-0); filter: none; }
+.cable-handle:hover .handle-dot, .cable-handle:focus-visible .handle-dot,
+.cable-insert-handle:hover .insert-dot, .cable-insert-handle:focus-visible .insert-dot { fill: var(--gray-12); stroke: var(--gray-0); }
+.cable-edit-layer .insert-dot { fill: var(--gray-12); stroke: var(--gray-0); }
+.cable-edit-layer .insert-plus { stroke: var(--gray-0); }
+
+/* scope + spectrum chrome */
+.scope-display, .spectrum-display { background: var(--scope-bg); border: var(--border-w) solid var(--gray-0); }
+.scope-channel-control .channel-enable i, .scope-channel-legend i { background: var(--channel-color); box-shadow: none; }
+
+/* spectrum readouts wrap instead of overlapping */
+.peak-strip { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+.peak-strip .measurement-cell { flex: 1 1 120px; min-width: 0; }
+.peak-strip .instrument-indicator { margin-left: auto; }
