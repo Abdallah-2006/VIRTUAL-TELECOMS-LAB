@@ -10,7 +10,7 @@ describe('fixed ETT-101 project format', () => {
     const project = createProject('ETT-101 · Free Lab');
     expect(project.schemaVersion).toBe(2);
     expect(project.settings.sampleRate).toBe(8_000_000);
-    expect(project.settings.sampleCount).toBe(16_384);
+    expect(project.settings.sampleCount).toBe(131_072);
     expect(project.modules).toHaveLength(HARDWARE_MODULES.length);
     expect(project.modules.map((module) => module.id)).toEqual(HARDWARE_MODULES.map((module) => module.id));
     expect(project.connections).toHaveLength(0);

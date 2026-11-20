@@ -88,6 +88,8 @@ export interface Project {
     triggerLevel: number;
     triggerMode: 'auto' | 'normal' | 'single';
     running: boolean;
+    /** Horizontal position: seconds the sweep is delayed after its start/trigger point (optional; 0 when absent). */
+    timeOffset?: number;
   };
   experiment: { id: string | null; mode: 'free' | 'guided'; step: number };
   view: { zoom: number; panX: number; panY: number };

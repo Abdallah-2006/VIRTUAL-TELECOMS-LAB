@@ -22,9 +22,9 @@ describe('source-documented and labeled ETT-101 DSP', () => {
     expect(Array.from(result['GA+gB'].samples)).toEqual([-1, 0.25]);
   });
 
-  it('multiplies physically connected Multiplier AC inputs and adds unconnected alternatives as zero', () => {
+  it('multiplies physically connected Multiplier DC inputs and adds unconnected alternatives as zero', () => {
     const result = processorRegistry.multiplier(
-      { X_AC: signal([2, -2]), Y_AC: signal([3, 4]) },
+      { X_DC: signal([2, -2]), Y_DC: signal([3, 4]) },
       {}, makeContext(500_000, 2, 'top.multiplier.upper', 'multiplier.four'),
     );
     expect(Array.from(result.kXY.samples)).toEqual([6, -8]);
@@ -62,7 +62,7 @@ describe('source-documented and labeled ETT-101 DSP', () => {
     expect(result.SINE.metadata.frequency).toBe(5000);
     expect(result.SINE.signalType).toBe('analog');
     expect(result.DIGITAL.signalType).toBe('digital');
-    expect(Math.max(...result.SINE.samples)).toBeCloseTo(0.6, 1);
+    expect(Math.max(...result.SINE.samples)).toBeCloseTo(2, 1); // fixed 4 Vp-p output; GAIN sets sensitivity, not amplitude
   });
 
   it('generates repeatable broadband Gaussian noise and preserves physical dB tap ratios', () => {

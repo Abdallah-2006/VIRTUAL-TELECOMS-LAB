@@ -86,7 +86,7 @@ function HardwareSocket({
           const source = project.modules.find((item) => item.id === pending.sourceModuleId);
           const target = project.modules.find((item) => item.id === moduleId);
           const sourcePort = source ? moduleByType.get(source.type)?.outputs.find((item) => item.name === pending.sourcePort) : undefined;
-          if (!source || !target || !sourcePort || sourcePort.signalType !== port.signalType) return false;
+          if (!source || !target || !sourcePort) return false;
           const trial = { ...project, connections: project.connections.filter((edge) => edge.id !== (reconnectId ?? pending.reconnectId)) };
           return validateConnection(trial, source.id, pending.sourcePort, target.id, socket.port).ok;
         })()

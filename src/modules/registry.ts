@@ -89,7 +89,7 @@ export const moduleDefinitions: ModuleDefinition[] = [
     type: 'utility.comparator', name: 'Comparator', shortName: 'COMP', category: 'Top-row Utilities',
     description: 'Compares an analog input against a reference and produces a digital-level output.', version: 2,
     documentation: { equation: 'OUT[n] = IN[n] ≥ REF[n] ? 1 : 0', practicalUse: 'Convert an analog threshold crossing into a digital pulse/logic signal.', assumptions: 'Logic samples are represented as 0/5 V in this simulator.' },
-    inputs: [analog('REF', 'Reference input'), analog('IN', 'Signal input')], outputs: [digital('OUT', 'Comparator logic output')], parameters: [], defaults: {}, processor: 'comparator', implemented: true,
+    inputs: [analog('REF', 'Reference input (0 V when unpatched, as when tied to GND)', true), analog('IN', 'Signal input')], outputs: [digital('OUT', 'Comparator logic output')], parameters: [], defaults: {}, processor: 'comparator', implemented: true,
   },
   {
     type: 'utility.rectifier', name: 'Rectifier', shortName: 'RECT', category: 'Top-row Utilities',

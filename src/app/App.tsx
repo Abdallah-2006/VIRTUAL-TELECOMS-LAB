@@ -277,6 +277,11 @@ export function App() {
     draft.instruments = { ...draft.instruments, ...patch };
   }), [commit]);
 
+  const changeCapture = useCallback((sampleCount: number) => commit((draft) => {
+    draft.settings = { ...draft.settings, sampleCount };
+    draft.instruments = { ...draft.instruments, timeOffset: 0 };
+  }), [commit]);
+
   const toggleScopeRunning = () => {
     const next = !projectRef.current.instruments.running;
     patchInstrument({ running: next });
@@ -422,7 +427,7 @@ export function App() {
       <div className="workspace-heading"><div><span className="eyebrow">ETT-101 DIGITAL TWIN / PATCH & MEASURE</span><h1>Telecoms Trainer <span>·</span> <small>{project.connections.length} live patch leads</small></h1></div><div className="sync-pill"><span className={stale ? 'sync-dot idle' : 'sync-dot'} />{stale ? 'CALCULATING CIRCUIT' : 'SIGNALS IN SYNC'}</div></div>
       <HardwareBoard project={project} result={simulation?.result ?? null} moduleErrors={moduleErrors} selectedConnectionId={selectedConnectionId} selectedModuleId={selectedModuleId} onConnect={connectModules} onSelectConnection={setSelectedConnectionId} onDeleteConnection={removeConnection} onClearConnections={clearConnections} onConnectionColor={changeCableColor} onCableRoute={changeCableRoute} onResetCableRoute={resetCableRoute} onParameter={updateParameter} onSelectModule={setSelectedModuleId} onMessage={showNotice} />
       <div className="instrument-heading"><div><span className="eyebrow">SEPARATE LABORATORY INSTRUMENT</span><h2>FOUR-CHANNEL OSCILLOSCOPE <span>{simulationBusy ? '· COMPUTING' : simulation ? `· ${simulation.completedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '· WAITING'}</span></h2></div><div className="instrument-run-state"><AudioLines size={14} /><span>{microphoneEnabled ? 'LIVE MIC AVAILABLE' : 'MIC DISCONNECTED'}</span></div></div>
-      <InstrumentDock project={project} result={simulation?.result ?? null} onInstrumentChange={patchInstrument} stale={stale} running={project.instruments.running} onToggleRun={toggleScopeRunning} onSingleCapture={captureSingle} />
+      <InstrumentDock project={project} result={simulation?.result ?? null} onInstrumentChange={patchInstrument} stale={stale} running={project.instruments.running} onToggleRun={toggleScopeRunning} onSingleCapture={captureSingle} onCaptureChange={changeCapture} />
       <footer className="statusbar"><div className="status-left"><span className={`status-led ${simulationBusy ? 'amber' : ''}`} /><strong>{simulationBusy ? 'DSP ACTIVE' : simulation ? 'READY' : 'IDLE'}</strong><span className="status-sep" />{project.modules.length} PHYSICAL FUNCTIONS <span className="status-sep" />{project.connections.length} PATCH LEADS <span className="status-sep" />{project.settings.sampleRate.toLocaleString()} Sa/s <span className="status-sep" />{sampleCount.toLocaleString()} SAMPLES</div><div className="status-right"><span>LOCAL-FIRST</span><span className="status-sep" /><span>SCHEMA 2</span><span className="status-sep" /><span className="status-glyph"><Activity size={13} /> VTL / ETT-101</span></div></footer>
     </main>
     {notice && <div className={`app-toast ${notice.tone}`} role="status"><span className="toast-mark">{notice.tone === 'error' ? '!' : notice.tone === 'success' ? '✓' : 'i'}</span><span>{notice.text}</span><button onClick={() => { if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current); noticeTimerRef.current = null; setNotice(null); }} aria-label="Dismiss message"><X size={14} /></button></div>}

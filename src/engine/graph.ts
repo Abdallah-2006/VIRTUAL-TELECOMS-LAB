@@ -32,7 +32,8 @@ export function validateConnection(
   const input = targetDef?.inputs.find((port) => port.name === targetPort);
   if (!output) return { ok: false, reason: `${sourceDef?.name ?? 'Source'} has no output socket “${sourcePort}”.` };
   if (!input) return { ok: false, reason: `${targetDef?.name ?? 'Destination'} has no input socket “${targetPort}”.` };
-  if (output.signalType !== input.signalType) return { ok: false, reason: `Cannot connect ${output.signalType} output to ${input.signalType} input.` };
+  // The physical trainer uses plain 2 mm patch sockets: the analog (round) / digital (square) shapes are a legend, not an interlock.
+  // The manual patches digital outputs into analog inputs (Exp. 9: 2 kHz DIGITAL → VCO INPUT; Exp. 10: Twin Pulse Q → Baseband LPF; Exp. 14: PCM DATA → Tuneable LPF), so cross-type leads must be allowed.
   const sourceSocketId = socketId(sourceModuleId, sourcePort);
   const targetSocketId = socketId(targetModuleId, targetPort);
   if (project.connections.some((edge) => edge.sourceSocketId === sourceSocketId && edge.targetSocketId === targetSocketId)) {

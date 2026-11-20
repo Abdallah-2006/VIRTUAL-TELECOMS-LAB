@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { calculateSpectrum } from '../src/engine/fft';
 import { simulateProject } from '../src/engine/simulation';
 import { validateConnection, topologicalOrder } from '../src/engine/graph';
-import { createProject } from '../src/project/projectFormat';
+import { createProject as createFullProject } from '../src/project/projectFormat';
+const createProject = () => { const project = createFullProject(); project.settings.sampleCount = 16_384; return project; };
 import { outputKey, socketId } from '../src/types';
 import type { Connection, Project, SignalBuffer } from '../src/types';
 
@@ -36,8 +37,8 @@ describe('physical signal graph and socket fan-out', () => {
   it('fans one VCO output to two multipliers and independent CH1/CH2 probes without disconnecting branches', () => {
     const project = createProject();
     const oscillator = outputKey('bottom.vco', 'SINE');
-    connect(project, 'bottom.vco', 'SINE', 'top.multiplier.upper', 'X_AC', 'red');
-    connect(project, 'bottom.masterSignals', '2kHz_SINE', 'top.multiplier.upper', 'Y_AC', 'black');
+    connect(project, 'bottom.vco', 'SINE', 'top.multiplier.upper', 'X_DC', 'red');
+    connect(project, 'bottom.masterSignals', '2kHz_SINE', 'top.multiplier.upper', 'Y_DC', 'black');
     connect(project, 'bottom.vco', 'SINE', 'bottom.multiplier', 'X_DC', 'blue');
     connect(project, 'bottom.masterSignals', '2kHz_SINE', 'bottom.multiplier', 'Y_DC', 'green');
     project.instruments.scopeChannels[0].sourceKey = oscillator;
@@ -80,11 +81,10 @@ describe('physical signal graph and socket fan-out', () => {
     expect(project.connections[0].sourceSocketId).toBe(project.connections[1].sourceSocketId);
   });
 
-  it('rejects digital-to-analog and input-to-input patching with a useful reason', () => {
+  it('allows digital-to-analog patching but rejects input-to-input patching with a useful reason', () => {
     const project = createProject();
-    const digitalToAnalog = validateConnection(project, 'bottom.vco', 'DIGITAL', 'top.buffer', 'IN');
-    expect(digitalToAnalog.ok).toBe(false);
-    if (!digitalToAnalog.ok) expect(digitalToAnalog.reason).toMatch(/digital output to analog input/);
+    // The manual patches digital outputs into analog inputs (Exp. 9, 10, 14), so cross-type leads are valid on the real trainer.
+    expect(validateConnection(project, 'bottom.vco', 'DIGITAL', 'top.buffer', 'IN').ok).toBe(true);
     const inputToInput = validateConnection(project, 'top.adder', 'A', 'top.buffer', 'IN');
     expect(inputToInput.ok).toBe(false);
     if (!inputToInput.ok) expect(inputToInput.reason).toMatch(/no output socket/);

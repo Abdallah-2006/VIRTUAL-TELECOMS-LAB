@@ -21,7 +21,7 @@ export function createProject(name = 'ETT-101 · Untitled Experiment'): Project 
   const now = new Date().toISOString();
   return {
     schemaVersion: 2, id: makeId(), name, createdAt: now, updatedAt: now,
-    settings: { sampleRate: 8_000_000, sampleCount: 16_384, simulationSpeed: 1 },
+    settings: { sampleRate: 8_000_000, sampleCount: 131_072, simulationSpeed: 1 },
     modules: createHardwareModules(), connections: [],
     instruments: {
       scopeChannels: scopeIds.map((id) => ({
@@ -135,6 +135,7 @@ export function validateImportedProject(value: unknown): Project {
     triggerLevel: instruments.triggerLevel,
     triggerMode: instruments.triggerMode,
     running: instruments.running,
+    timeOffset: Number.isFinite(instruments.timeOffset) && (instruments.timeOffset as number) >= 0 ? (instruments.timeOffset as number) : 0,
   };
   if (!candidate.experiment || (candidate.experiment.mode !== 'free' && candidate.experiment.mode !== 'guided') || !Number.isInteger(candidate.experiment.step) || candidate.experiment.step < 0 || !(candidate.experiment.id === null || typeof candidate.experiment.id === 'string')) throw new Error('Experiment state is invalid.');
   safeProject.experiment = { ...candidate.experiment };

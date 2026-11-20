@@ -43,7 +43,6 @@ export function simulateProject(
       }
       const signal = outputs[outputKey(edge.sourceModuleId, edge.sourcePort)];
       if (!signal) { missing = `Input ${port.name} has no valid upstream signal.`; break; }
-      if (signal.signalType !== port.signalType) { missing = `Input ${port.name} expects ${port.signalType}, received ${signal.signalType}.`; break; }
       inputs[port.name] = signal;
     }
     if (missing) { errors[moduleId] = missing; continue; }

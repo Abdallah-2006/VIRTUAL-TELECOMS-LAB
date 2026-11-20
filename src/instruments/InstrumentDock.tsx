@@ -14,14 +14,16 @@ interface Props {
   running: boolean;
   onToggleRun: () => void;
   onSingleCapture: () => void;
+  onCaptureChange?: (sampleCount: number) => void;
 }
 const traceVars = ['var(--ch1)', 'var(--ch2)', 'var(--ch3)', 'var(--ch4)'];
 const cssVar = (name: string, fallback: string) => (typeof document === 'undefined' ? fallback : getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
 const resolveTraceColors = () => ['--ch1', '--ch2', '--ch3', '--ch4'].map((name, index) => cssVar(name, ['#d6bb51', '#5fc2ad', '#e37e68', '#829ae0'][index]));
 const EMPTY_OUTPUTS: Record<string, SignalBuffer> = {};
 const spanOptions = [5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 4_000_000];
-const timeOptions = [0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005];
-const voltsOptions = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10];
+const timeOptions = [0.000001, 0.000002, 0.000005, 0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005];
+const captureOptions = [16_384, 32_768, 65_536, 131_072, 262_144];
+const voltsOptions = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
 const channelOrder: ScopeChannel['id'][] = ['CH1', 'CH2', 'CH3', 'CH4'];
 
 function useCanvas(draw: (context: CanvasRenderingContext2D, width: number, height: number) => void, deps: unknown[]) {
@@ -83,38 +85,64 @@ function drawOscilloscope(
   triggerLevel: number,
   triggerMode: Project['instruments']['triggerMode'],
   running: boolean,
+  timeOffset: number,
 ) {
   drawGrid(context, width, height);
   const colors = resolveTraceColors();
   const source = channels.find((channel) => channel.id === triggerSource);
   const triggerSignal = source?.enabled ? signals[source.sourceKey] : undefined;
+  const spanSeconds = timePerDiv * 10;
+  // One common timebase for every channel. Edge trigger (rising slope) on the chosen channel: the sweep starts at the crossing,
+  // as on a real scope. AUTO free-runs when there is no edge; NORMAL/SINGLE show nothing until an edge is found.
   let startIndex = 0;
-  if (triggerSignal && triggerMode !== 'auto') {
-    for (let index = 1; index < triggerSignal.samples.length; index += 1) {
-      if (triggerSignal.samples[index - 1] < triggerLevel && triggerSignal.samples[index] >= triggerLevel) { startIndex = Math.max(0, index - Math.floor(triggerSignal.sampleRate * timePerDiv * 5)); break; }
+  let triggered = false;
+  if (triggerSignal && triggerSignal.samples.length > 2) {
+    const needed = Math.min(Math.round(triggerSignal.sampleRate * spanSeconds), Math.floor(triggerSignal.samples.length / 2));
+    const samples = triggerSignal.samples;
+    for (let index = 1; index < samples.length - needed; index += 1) {
+      if (samples[index - 1] < triggerLevel && samples[index] >= triggerLevel) { startIndex = index; triggered = true; break; }
     }
   }
-  for (let channelIndex = 0; channelIndex < channels.length; channelIndex += 1) {
+  const showTraces = triggerMode === 'auto' || triggered || !triggerSignal;
+  for (let channelIndex = 0; showTraces && channelIndex < channels.length; channelIndex += 1) {
     const channel = channels[channelIndex];
     const signal = channel.enabled ? signals[channel.sourceKey] : undefined;
     if (!signal?.samples.length) continue;
-    const visibleSamples = Math.min(signal.samples.length, Math.max(16, Math.round(signal.sampleRate * timePerDiv * 10)));
-    const first = Math.min(Math.max(0, signal.samples.length - visibleSamples), startIndex);
-    const last = Math.min(signal.samples.length, first + visibleSamples);
-    const count = last - first;
+    const wanted = Math.max(2, Math.round(signal.sampleRate * spanSeconds));
+    const first = Math.max(0, Math.min(startIndex + Math.round(signal.sampleRate * timeOffset), signal.samples.length - 2));
+    const count = Math.min(wanted, signal.samples.length - first);
     if (count < 2) continue;
+    // If the captured block is shorter than the screen span only that fraction of the screen is drawn (no stretching).
+    const drawWidth = width * (count / wanted);
     const voltsPerDiv = Math.max(0.000001, channel.voltsPerDiv);
+    const yOf = (volts: number) => height / 2 - (volts / voltsPerDiv + channel.verticalPosition) * (height / 8);
     context.save(); context.beginPath(); context.rect(0, 0, width, height); context.clip();
     context.strokeStyle = colors[channelIndex]; context.lineWidth = 1.65; context.beginPath();
-    const pixels = Math.min(Math.ceil(width * 2), count);
-    for (let pixel = 0; pixel < pixels; pixel += 1) {
-      const index = first + Math.floor((pixel / Math.max(1, pixels - 1)) * (count - 1));
-      const x = (pixel / Math.max(1, pixels - 1)) * width;
-      const value = signal.samples[index] / voltsPerDiv + channel.verticalPosition;
-      const y = height / 2 - value * (height / 8);
-      if (pixel === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    const pixels = Math.max(2, Math.ceil(drawWidth));
+    const perPixel = count / pixels;
+    if (perPixel <= 1.5) {
+      for (let pixel = 0; pixel < pixels; pixel += 1) {
+        const position = first + (pixel / Math.max(1, pixels - 1)) * (count - 1);
+        const lower = Math.floor(position), upper = Math.min(signal.samples.length - 1, lower + 1);
+        const value = signal.samples[lower] + (signal.samples[upper] - signal.samples[lower]) * (position - lower);
+        const x = (pixel / Math.max(1, pixels - 1)) * drawWidth;
+        if (pixel === 0) context.moveTo(x, yOf(value)); else context.lineTo(x, yOf(value));
+      }
+    } else {
+      // Many samples per pixel: draw the min/max envelope so fast carriers are never aliased away.
+      for (let pixel = 0; pixel < pixels; pixel += 1) {
+        const i0 = first + Math.floor(pixel * perPixel), i1 = Math.min(first + count, first + Math.floor((pixel + 1) * perPixel) + 1);
+        let low = Infinity, high = -Infinity;
+        for (let i = i0; i < i1; i += 1) { const v = signal.samples[i]; if (v < low) low = v; if (v > high) high = v; }
+        const x = (pixel / Math.max(1, pixels - 1)) * drawWidth;
+        if (pixel === 0) context.moveTo(x, yOf(low)); else context.lineTo(x, yOf(low));
+        context.lineTo(x, yOf(high));
+      }
     }
     context.stroke(); context.restore();
+  }
+  if (!showTraces) {
+    context.fillStyle = cssVar('--scope-hold', '#d2d2d2'); context.font = '600 10px monospace'; context.fillText('NO TRIG', 12, 19);
   }
   if (!running) {
     context.fillStyle = cssVar('--scope-bg', '#000'); context.fillRect(width - 63, 7, 54, 17);
@@ -146,9 +174,21 @@ function useSpectrum({ channels, windowType, span }: { channels: { id: ScopeChan
   const peaks = useMemo(() => visible.flatMap((spectrum) => {
     const { bins } = spectrum;
     if (bins.length < 4) return [];
+    const binWidth = Math.abs(bins[1].frequency - bins[0].frequency) || 1;
     const floor = Math.max(...bins.map((bin) => bin.magnitude)) * 0.02;
-    return bins.slice(1, -1).map((bin, index) => ({ ...bin, index: index + 1, id: spectrum.id, color: '' }))
+    return bins.slice(1, -1).map((bin, index) => ({ ...bin, index: index + 1 }))
       .filter((bin) => bin.magnitude > floor && bin.magnitude > bins[bin.index - 1].magnitude && bin.magnitude >= bins[bin.index + 1].magnitude)
+      .map((bin) => {
+        // Parabolic interpolation in log magnitude: removes bin-centre and scalloping error of the peak frequency/height.
+        const la = Math.log(Math.max(bins[bin.index - 1].magnitude, 1e-300)), lb = Math.log(bin.magnitude), lc = Math.log(Math.max(bins[bin.index + 1].magnitude, 1e-300));
+        const denominator = la - 2 * lb + lc;
+        const delta = denominator < 0 ? Math.max(-0.5, Math.min(0.5, 0.5 * (la - lc) / denominator)) : 0;
+        const magnitude = Math.exp(lb - 0.25 * (la - lc) * delta);
+        const frequency = bin.frequency + delta * binWidth;
+        // The display is two-sided: a real tone of amplitude A shows A/2 at ±f, but a DC level shows its full value.
+        const amplitude = Math.abs(frequency) < binWidth * 1.5 ? magnitude : 2 * magnitude;
+        return { frequency, magnitude, amplitude, id: spectrum.id, color: '' };
+      })
       .sort((a, b) => b.magnitude - a.magnitude).slice(0, 4);
   }).sort((a, b) => b.magnitude - a.magnitude), [visible]);
   const ref = useCanvas((context, width, height) => {
@@ -184,7 +224,7 @@ function outputLabel(key: string, project: Project): string {
   return `${definition?.shortName ?? 'OUT'} · ${port}`;
 }
 
-export function InstrumentDock({ project, result, onInstrumentChange, stale, running, onToggleRun, onSingleCapture }: Props) {
+export function InstrumentDock({ project, result, onInstrumentChange, stale, running, onToggleRun, onSingleCapture, onCaptureChange }: Props) {
   const [heldResult, setHeldResult] = useState<SimulationResult | null>(result);
   useEffect(() => { if (result) setHeldResult(result); }, [result]);
   const displayResult = running ? result : heldResult;
@@ -196,7 +236,7 @@ export function InstrumentDock({ project, result, onInstrumentChange, stale, run
   const measured = enabledSignals[0] ? measureSignal(enabledSignals[0]) : null;
   const activeSpectrumChannels = useMemo(() => channels.flatMap((channel, index) => channel.enabled && channelSignals[index] ? [{ id: channel.id, index, signal: channelSignals[index]! }] : []), [channels, outputs]);
   const spectrum = useSpectrum({ channels: activeSpectrumChannels, windowType: project.instruments.spectrumWindow, span: spectrumSpan });
-  const scopeRef = useCanvas((context, width, height) => drawOscilloscope(context, width, height, channels, outputs, project.instruments.timePerDiv, project.instruments.triggerSource, project.instruments.triggerLevel, project.instruments.triggerMode, running), [channels, outputs, project.instruments.timePerDiv, project.instruments.triggerSource, project.instruments.triggerLevel, project.instruments.triggerMode, running]);
+  const scopeRef = useCanvas((context, width, height) => drawOscilloscope(context, width, height, channels, outputs, project.instruments.timePerDiv, project.instruments.triggerSource, project.instruments.triggerLevel, project.instruments.triggerMode, running, project.instruments.timeOffset ?? 0), [channels, outputs, project.instruments.timePerDiv, project.instruments.triggerSource, project.instruments.triggerLevel, project.instruments.triggerMode, running, project.instruments.timeOffset]);
   const setChannel = (id: ScopeChannel['id'], patch: Partial<ScopeChannel>) => onInstrumentChange({ scopeChannels: channels.map((channel) => channel.id === id ? { ...channel, ...patch } : channel) });
   const frequencyTicks = [-1, -0.5, 0, 0.5, 1].map((fraction) => frequencyLabel(spectrum.maximumFrequency * fraction));
   const autoSetup = () => {
@@ -212,12 +252,14 @@ export function InstrumentDock({ project, result, onInstrumentChange, stale, run
       const volts = measure ? voltsOptions.find((option) => measure.peakToPeak / option <= 6) ?? voltsOptions[voltsOptions.length - 1] : channel.voltsPerDiv;
       return { ...channel, enabled: slot >= 0, voltsPerDiv: volts, verticalPosition: slot >= 0 ? ((active.length - 1) / 2 - slot) * step : 0 };
     });
-    onInstrumentChange({ scopeChannels: nextChannels, timePerDiv, triggerSource: active[0]?.id ?? 'CH1', triggerLevel: 0, triggerMode: 'auto' });
+    onInstrumentChange({ scopeChannels: nextChannels, timePerDiv, triggerSource: active[0]?.id ?? 'CH1', triggerLevel: 0, triggerMode: 'auto', timeOffset: 0 });
   };
   return <section className="instrument-dock">
     <div className="instrument-panel oscilloscope-panel">
       <div className="instrument-head"><div className="instrument-title"><span className="instrument-icon scope-icon"><Activity size={15} /></span><div><span className="eyebrow">TIME DOMAIN / FOUR INDEPENDENT PROBES</span><h3>Oscilloscope <span className="instrument-model">4 CH · TWIN-TIMEBASE</span></h3></div></div><div className="scope-global-controls">
-        <label><span>TIME / DIV</span><select aria-label="Time per division" value={project.instruments.timePerDiv} onChange={(event) => onInstrumentChange({ timePerDiv: Number(event.target.value) })}>{timeOptions.map((value) => <option key={value} value={value}>{value < 0.001 ? `${value * 1e6} µs` : `${value * 1e3} ms`}</option>)}</select></label>
+        <label><span>TIME / DIV</span><select aria-label="Time per division" value={project.instruments.timePerDiv} onChange={(event) => onInstrumentChange({ timePerDiv: Number(event.target.value) })}>{timeOptions.map((value) => <option key={value} value={value}>{value < 0.001 ? `${Number((value * 1e6).toFixed(3))} µs` : `${Number((value * 1e3).toFixed(3))} ms`}</option>)}</select></label>
+        <label><span>CAPTURE</span><select aria-label="Capture length" value={project.settings.sampleCount} onChange={(event) => onCaptureChange?.(Number(event.target.value))}>{captureOptions.map((value) => <option key={value} value={value}>{`${Number(((value / project.settings.sampleRate) * 1000).toFixed(2))} ms`}</option>)}</select></label>
+        <label><span>H POS</span><input aria-label="Horizontal position" type="range" min="0" max={Math.max(0, project.settings.sampleCount / project.settings.sampleRate - project.instruments.timePerDiv * 10)} step={project.instruments.timePerDiv / 10} value={Math.min(project.instruments.timeOffset ?? 0, Math.max(0, project.settings.sampleCount / project.settings.sampleRate - project.instruments.timePerDiv * 10))} onChange={(event) => onInstrumentChange({ timeOffset: Number(event.target.value) })} /></label>
         <button className="scope-action" onClick={autoSetup}><ScanLine size={12} /> AUTO SETUP</button>
         <button className={`scope-action ${running ? 'is-running' : 'is-hold'}`} onClick={() => !running && project.instruments.triggerMode === 'single' ? onSingleCapture() : onToggleRun()}>{running ? <Square size={11} fill="currentColor" /> : project.instruments.triggerMode === 'single' ? <ScanLine size={11} /> : <Play size={11} fill="currentColor" />} {running ? 'STOP' : project.instruments.triggerMode === 'single' ? 'SINGLE' : 'RUN'}</button>
       </div></div>
@@ -226,7 +268,7 @@ export function InstrumentDock({ project, result, onInstrumentChange, stale, run
         <label><span>V/DIV</span><select aria-label={`${channel.id} volts per division`} value={channel.voltsPerDiv} onChange={(event) => setChannel(channel.id, { voltsPerDiv: Number(event.target.value) })}>{voltsOptions.map((value) => <option key={value} value={value}>{value} V</option>)}</select></label>
         <label><span>POS</span><input aria-label={`${channel.id} vertical position`} type="range" min="-4" max="4" step="0.25" value={channel.verticalPosition} onChange={(event) => setChannel(channel.id, { verticalPosition: Number(event.target.value) })} /></label>
       </div>)}</div>
-      <div className="scope-display-wrap"><div className="scope-y-axis"><span>+4 div</span><span>0 V</span><span>−4 div</span></div><div className="scope-display"><canvas className="instrument-canvas" ref={scopeRef} />{!enabledSignals.length && <div className="plot-empty"><ScanLine size={18} /><span>{stale ? 'Recalculating hardware outputs' : 'Connect EMONA outputs to CH1–CH4'}</span></div>}<div className="scope-time-label">{(project.instruments.timePerDiv * 10 * 1000).toFixed(3)} ms total · {project.settings.sampleRate.toLocaleString()} Sa/s</div></div></div>
+      <div className="scope-display-wrap"><div className="scope-y-axis"><span>+4 div</span><span>0 V</span><span>−4 div</span></div><div className="scope-display"><canvas className="instrument-canvas" ref={scopeRef} />{!enabledSignals.length && <div className="plot-empty"><ScanLine size={18} /><span>{stale ? 'Recalculating hardware outputs' : 'Connect EMONA outputs to CH1–CH4'}</span></div>}<div className="scope-time-label">{(project.instruments.timePerDiv * 10 * 1000).toFixed(3)} ms screen · {((project.settings.sampleCount / project.settings.sampleRate) * 1000).toFixed(3)} ms capture · {project.settings.sampleRate.toLocaleString()} Sa/s</div></div></div>
       <div className="scope-trigger-controls"><label><span>TRIGGER SOURCE</span><select value={project.instruments.triggerSource} onChange={(event) => onInstrumentChange({ triggerSource: event.target.value as Project['instruments']['triggerSource'] })}>{channelOrder.map((id) => <option key={id} value={id}>{id}</option>)}</select></label><label><span>LEVEL</span><input type="number" step="0.1" value={project.instruments.triggerLevel} onChange={(event) => onInstrumentChange({ triggerLevel: Number(event.target.value) })} />V</label><label><span>MODE</span><select value={project.instruments.triggerMode} onChange={(event) => onInstrumentChange({ triggerMode: event.target.value as Project['instruments']['triggerMode'] })}><option value="auto">Auto</option><option value="normal">Normal</option><option value="single">Single</option></select></label><div className="scope-measurements">{[
         ['FREQ', measured?.frequency ? `${(measured.frequency / 1000).toFixed(2)} kHz` : '—'],
         ['PEAK', measured ? `${measured.peak.toFixed(3)} V` : '—'],
@@ -240,7 +282,7 @@ export function InstrumentDock({ project, result, onInstrumentChange, stale, run
     <div className="instrument-panel spectrum-panel">
       <div className="instrument-head"><div className="instrument-title"><span className="instrument-icon spectrum-icon"><ChartNoAxesCombined size={15} /></span><div><span className="eyebrow">FREQUENCY DOMAIN / ACTIVE SCOPE CHANNELS</span><h3>Spectrum Analyzer</h3></div></div><div className="instrument-selectors"><label className="window-selector"><ChevronDown size={12} /><select aria-label="Spectrum span" value={spectrumSpan} onChange={(event) => setSpectrumSpan(event.target.value === 'auto' ? 'auto' : Number(event.target.value))}><option value="auto">Span: auto</option>{spanOptions.map((value) => <option key={value} value={value}>{`± ${frequencyLabel(value)}`}</option>)}</select></label><label className="window-selector"><ChevronDown size={12} /><select aria-label="FFT window" value={project.instruments.spectrumWindow} onChange={(event) => onInstrumentChange({ spectrumWindow: event.target.value as Project['instruments']['spectrumWindow'] })}><option value="hann">Hann window</option><option value="rectangular">Rectangular</option></select></label></div></div>
       <div className="spectrum-display-wrap"><div className="spectrum-y-axis"><span>MAG</span><span>0</span></div><div className="spectrum-display"><canvas className="instrument-canvas" ref={spectrum.ref} />{!activeSpectrumChannels.length && <div className="plot-empty"><AudioLines size={18} /><span>{stale ? 'Recalculating outputs' : 'Enable a scope channel with a connected output'}</span></div>}<div className="spectrum-x-axis">{frequencyTicks.map((tick, index) => <span key={index}>{tick}</span>)}</div></div></div>
-      <div className="measurement-strip peak-strip"><div className="measurement-cell"><span>CHANNELS</span><strong>{spectrum.spectra.map((item) => item.id).join(' · ') || '—'}</strong></div>{spectrum.leadPeaks.map((peak, index) => <div className="measurement-cell peak-cell" key={`${peak.id}-${peak.frequency}-${index}`}><span>{peak.id} PEAK</span><strong>{peak.frequency < 0 ? '−' : '+'}{Math.abs(peak.frequency) >= 1000 ? `${(Math.abs(peak.frequency) / 1000).toFixed(2)} kHz` : `${Math.abs(peak.frequency).toFixed(0)} Hz`} <small>{peak.magnitude.toFixed(3)} V</small></strong></div>)}{activeSpectrumChannels.length > 0 && spectrum.peaks.length === 0 && <div className="measurement-cell"><span>PEAKS</span><strong>Not resolved</strong></div>}<div className="instrument-indicator"><Radio size={13} /><span>{stale ? 'UPDATING' : running ? 'LIVE DATA' : 'HOLD'}</span></div></div>
+      <div className="measurement-strip peak-strip"><div className="measurement-cell"><span>CHANNELS</span><strong>{spectrum.spectra.map((item) => item.id).join(' · ') || '—'}</strong></div>{spectrum.leadPeaks.map((peak, index) => <div className="measurement-cell peak-cell" key={`${peak.id}-${peak.frequency}-${index}`}><span>{peak.id} PEAK</span><strong>{peak.frequency < 0 ? '−' : '+'}{Math.abs(peak.frequency) >= 1000 ? `${(Math.abs(peak.frequency) / 1000).toFixed(2)} kHz` : `${Math.abs(peak.frequency).toFixed(0)} Hz`} <small>{peak.amplitude.toFixed(3)} V</small></strong></div>)}{activeSpectrumChannels.length > 0 && spectrum.peaks.length === 0 && <div className="measurement-cell"><span>PEAKS</span><strong>Not resolved</strong></div>}<div className="instrument-indicator"><Radio size={13} /><span>{stale ? 'UPDATING' : running ? 'LIVE DATA' : 'HOLD'}</span></div></div>
     </div>
   </section>;
 }
