@@ -7,7 +7,7 @@ import { validateConnection } from '../engine/graph';
 import { outputKey, socketId } from '../types';
 import { BAYS, CABLE_COLORS, GROUND_SOCKETS, HARDWARE_MODULES, SCOPE_INPUTS, type ControlLayout, type ModuleLayout } from './layout';
 import { cablePath, clampToPanel, insertionPoints, MAX_ROUTING_POINTS } from './cableGeometry';
-import { GroundTerminal, RotaryKnob, SignalGenerator, ToggleSwitch } from './controls';
+import { GroundTerminal, RotaryKnob, ToggleSwitch } from './controls';
 
 interface PendingCable {
   sourceModuleId: string; sourcePort: string; pointerX: number; pointerY: number;
@@ -111,7 +111,6 @@ function HardwareSocket({
 function ScopeInputLayer({ project, pending }: { project: Project; pending: PendingCable | null }) {
   return <g className="scope-input-layer" aria-label="Oscilloscope physical inputs">
     <rect className="scope-input-rail" x="432.208" y="43" width="18.5" height="138" />
-    <text className="scope-input-title" x="446.56" y="50" textAnchor="middle">SCOPE</text>
     {SCOPE_INPUTS.map((input) => {
       const connected = project.connections.some((edge) => edge.targetModuleId === input.id && edge.targetPort === input.port);
       return <g key={input.id} className={`scope-input ${connected ? 'is-connected' : ''} ${pending ? 'is-compatible' : ''}`} data-socket-id={socketId(input.id, input.port)} data-module-id={input.id} data-port={input.port} data-direction="input" data-signal-type="analog" role="button" tabIndex={0} aria-label={`${input.channel} oscilloscope input${connected ? ' connected' : ''}`}>
@@ -159,12 +158,9 @@ function HardwareModule({ layer, layout, instance, definition, status, error, se
       if (parameter.kind === 'select') return <ToggleSwitch key={control.key} x={control.x} y={control.y} label={control.label} value={String(value ?? parameter.options[0]?.value)} options={parameter.options} onChange={(next) => onParameter(layout.id, control.key, next)} />;
       return <RotaryKnob key={control.key} x={control.x} y={control.y} label={control.label} value={typeof value === 'number' ? value : parameter.min} definition={parameter} onChange={(next) => onParameter(layout.id, control.key, next)} />;
     })}
-    {(layout.type === 'source.masterSignals' || layout.type === 'vco') && <SignalGenerator x={layout.x + (layout.type === 'vco' ? 1.5 : 3)} y={layout.y + (layout.row === 'top' ? 14 : 25)} kind={layout.type === 'vco' ? 'sine' : 'digital'} label={layout.type === 'vco' ? 'OSC' : 'REF'} />}
-    {layout.type === 'source.masterSignals' && <SignalGenerator x={layout.x + 3} y={layout.y + 33} kind="sine" label="100k / 2k" />}
     {layout.type === 'source.speech' && <g className="printed-mic" transform={`translate(${layout.x + 8} ${layout.y + 15})`}><rect x="-1.8" y="-4" width="3.6" height="6" /><path d="M-3 1 C-3 6 3 6 3 1 M0 4 V7 M-2 7 H2" /></g>}
-    {layout.type === 'utility.buffer' && <g className="printed-headphone" transform={`translate(${layout.x + 18} ${layout.y + 25})`}><path d="M-3 1 V-1 A3 3 0 0 1 3-1 V1 M-3 0 V3 H-1 V0 M3 0 V3 H1 V0" /></g>}
+    {/* {layout.type === 'utility.buffer' && <g className="printed-headphone" transform={`translate(${layout.x + 18} ${layout.y + 25})`}><path d="M-3 1 V-1 A3 3 0 0 1 3-1 V1 M-3 0 V3 H-1 V0 M3 0 V3 H1 V0" /></g>} */}
     {layout.type === 'source.variableDc' && <g className="printed-dcv" transform={`translate(${layout.x + 8} ${layout.y + 21})`}><text x="1" y="1">V</text></g>}
-    {layout.type === 'source.masterSignals' && <text className="master-reference-print" x={layout.x + 2} y={layout.y + 75}>100k SIN/COS · 8.333k · 2.083k</text>}
     {layout.separators?.map((y) => <path key={y} className="submodule-rule" d={`M ${layout.x} ${y} H ${layout.x + layout.width}`} />)}
   </g>;
 }
@@ -375,7 +371,6 @@ export function HardwareBoard({
 
   return <section className="physical-trainer" aria-label="ETT-101 digital twin">
     <div className="instrument-body">
-      <div className="body-edge"><span>ETT-101 TELECOMS TRAINER</span><span>VIRTUAL TELECOMS LAB · DIGITAL TWIN</span><span /></div>
       <svg ref={svgRef} className={`emona-front-panel ${selectedCable ? 'cable-editing' : ''}`} viewBox="0 0 468 240" preserveAspectRatio="xMidYMid meet" aria-label="Source-measured two-row ETT-101 front panel with oscilloscope inputs" onPointerMove={(event) => { if (pending) { const point = pointFromEvent(event); setPending((current) => current ? { ...current, pointerX: point.x, pointerY: point.y } : current); } }} onPointerUp={finishCable} onPointerDown={(event) => {
         const target = event.target as Element | null;
         if (!target) return;
@@ -391,13 +386,10 @@ export function HardwareBoard({
         <rect className="panel-metal" x="2.2" y="5" width="421.2" height="222" />
         <rect className="panel-inset" x="6.1" y="7.5" width="413.4" height="217" />
         {[[8.128,8.8],[417.472,8.8],[8.128,223.2],[417.472,223.2]].map(([x,y], index) => <g className="chassis-screw" key={index} transform={`translate(${x} ${y})`}><circle r="1.5" /><path d="M-0.8 0 H0.8" /></g>)}
-        <text className="panel-header-title" x="13.12" y="12.7">TELECOMS TRAINER 101</text><text className="panel-header-subtitle" x="198.76" y="12.7">ANALOG / DIGITAL COMMUNICATIONS</text>
-        <g className="panel-power" transform="translate(381.28 10.5)"><circle r="2.3" /><circle className="power-led" cx="7" cy="0" r="1.2" /><text x="10" y="0.7">DC IN 9–15V / 1A</text></g>
         {BAYS.map((bay) => <g className={`panel-bay bay-${bay.row}`} key={bay.id}><rect x={bay.x} y={bay.y} width={bay.width} height={bay.height} /><text className="bay-label" x={bay.x + bay.width / 2} y={bay.y + 2.5} textAnchor="middle">{bay.label}</text></g>)}
         <rect className="expansion-inset" x="328.24" y="141" width="79.56" height="73" />
         <text className="expansion-mark" x="367.62" y="153.5" textAnchor="middle">EXPANSION</text>
         <rect className="expansion-slot" x="337.6" y="158" width="60.84" height="10" />
-        <text className="expansion-note" x="367.62" y="180" textAnchor="middle">OPTIONAL MODULE BAY</text>
         <line className="ground-rail" x1="11.56" y1="126.5" x2="414.04" y2="126.5" />
         {GROUND_SOCKETS.map((ground) => <GroundTerminal key={ground.id} {...ground} onClick={() => onMessage(`${ground.id}: common ground reference; it is not a signal-processing port.`, 'info')} />)}
         <ScopeInputLayer project={project} pending={pending} />
