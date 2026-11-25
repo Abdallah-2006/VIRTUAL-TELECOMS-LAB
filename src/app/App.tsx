@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowDownToLine, ArrowUpFromLine, AudioLines, FilePlus2, FolderOpen, Mic, MicOff, Play, Redo2, Save, Square, Undo2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, AudioLines, FilePlus2, FolderOpen, Mic, MicOff, Play, Redo2, Save, Square, Undo2, X } from 'lucide-react';
 import type { CableColor, CablePoint, Project, SimulationResult } from '../types';
 import { createProject, validateImportedProject } from '../project/projectFormat';
 import { makeSignature } from '../project/signature';
@@ -47,7 +47,7 @@ export function App() {
   projectRef.current = project;
   const signature = useMemo(() => makeSignature(project), [project]);
   const stale = !simulation || simulation.signature !== signature;
-  const sampleCount = project.settings.sampleCount;
+  // const sampleCount = project.settings.sampleCount;
   const inputsRef = importInputRef;
   const microphoneInitializedRef = useRef(false);
 

@@ -24,7 +24,7 @@ const spanOptions = [5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1
 const timeOptions = [0.000001, 0.000002, 0.000005, 0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005];
 const captureOptions = [16_384, 32_768, 65_536, 131_072, 262_144];
 const voltsOptions = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
-const channelOrder: ScopeChannel['id'][] = ['CH1', 'CH2', 'CH3', 'CH4'];
+// const channelOrder: ScopeChannel['id'][] = ['CH1', 'CH2', 'CH3', 'CH4'];
 
 function useCanvas(draw: (context: CanvasRenderingContext2D, width: number, height: number) => void, deps: unknown[]) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -233,7 +233,7 @@ export function InstrumentDock({ project, result, onInstrumentChange, stale, run
   const channels = project.instruments.scopeChannels;
   const channelSignals = channels.map((channel) => outputs[channel.sourceKey] ?? null);
   const enabledSignals = channels.flatMap((channel, index) => channel.enabled && channelSignals[index] ? [channelSignals[index]!] : []);
-  const measured = enabledSignals[0] ? measureSignal(enabledSignals[0]) : null;
+  // const measured = enabledSignals[0] ? measureSignal(enabledSignals[0]) : null;
   const activeSpectrumChannels = useMemo(() => channels.flatMap((channel, index) => channel.enabled && channelSignals[index] ? [{ id: channel.id, index, signal: channelSignals[index]! }] : []), [channels, outputs]);
   const spectrum = useSpectrum({ channels: activeSpectrumChannels, windowType: project.instruments.spectrumWindow, span: spectrumSpan });
   const scopeRef = useCanvas((context, width, height) => drawOscilloscope(context, width, height, channels, outputs, project.instruments.timePerDiv, project.instruments.triggerSource, project.instruments.triggerLevel, project.instruments.triggerMode, running, project.instruments.timeOffset ?? 0), [channels, outputs, project.instruments.timePerDiv, project.instruments.triggerSource, project.instruments.triggerLevel, project.instruments.triggerMode, running, project.instruments.timeOffset]);
