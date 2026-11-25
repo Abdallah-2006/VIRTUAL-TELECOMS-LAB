@@ -17,6 +17,7 @@ const cloneProject = (project: Project): Project => JSON.parse(JSON.stringify(pr
 const createId = () => globalThis.crypto?.randomUUID?.() ?? `c-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export function App() {
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [project, setProject] = useState<Project>(() => createProject('ETT-101 · Free Lab'));
   const [history, setHistory] = useState<{ past: Project[]; future: Project[] }>({ past: [], future: [] });
   const historyRef = useRef(history);
@@ -51,6 +52,7 @@ export function App() {
   const microphoneInitializedRef = useRef(false);
 
   const showNotice = useCallback((text: string, tone: NoticeTone = 'info') => {
+    // return; // Delete this to returne thi notification again
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     setNotice({ text, tone });
     noticeTimerRef.current = window.setTimeout(() => {
@@ -406,8 +408,8 @@ export function App() {
 
   return <div className="lab-shell hardware-app">
     <header className="topbar hardware-topbar">
-      <div className="brand-lockup"><img src="/logo.svg" alt="" /><div><strong>VIRTUAL <span>TELECOMS</span> LAB</strong><small>EMONA ETT-101 · SIGNALS & COMMUNICATIONS</small></div></div>
-      <div className="header-project"><span className="project-pulse" /><div><small>PROJECT / LOCAL CIRCUIT</small><strong>{project.name}</strong></div></div>
+      <div className="brand-lockup"><img src="/logo.svg" alt="" /><div><strong>VIRTUAL <span>TELECOMS</span> LAB</strong><small>SIGNALS & COMMUNICATIONS</small></div></div>
+      <div className="header-project"><span className="project-pulse" /><div><strong>EMONA KIT SIMULATOR</strong></div></div>
       <div className="topbar-spacer" />
       <div className="project-actions">
         <button className="toolbar-button" onClick={createNewProject}><FilePlus2 size={15} /><span>New</span></button>
@@ -431,7 +433,8 @@ export function App() {
       </main>
     {notice && <div className={`app-toast ${notice.tone}`} role="status"><span className="toast-mark">{notice.tone === 'error' ? '!' : notice.tone === 'success' ? '✓' : 'i'}</span><span>{notice.text}</span><button onClick={() => { if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current); noticeTimerRef.current = null; setNotice(null); }} aria-label="Dismiss message"><X size={14} /></button></div>}
     {projectBrowserOpen && <ProjectBrowser projects={projectList} onClose={() => setProjectBrowserOpen(false)} onOpen={openSavedProject} onDelete={async (id) => { await deleteProject(id); setProjectList(await listProjects()); }} />}
-    <button className="help-tab" title="About the ETT-101 digital twin" onClick={() => showNotice('This panel follows the supplied ETT-101 reference and manufacturer documentation. Unknown hardware characteristics are labeled as approximations in the module information and hardware reconstruction document.', 'info')}><AudioLines size={15} /> ABOUT</button>
+    {/* help & contact */}
+    <><button className="help-tab" title="Student Guide & Support" onClick={() => setAboutOpen(true)}><AudioLines size={15} /> HELP &amp; SUPPORT</button>{aboutOpen && (<div className="modal-scrim" onClick={() => setAboutOpen(false)}><div className="project-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><span className="eyebrow">SIMULATOR STUDENT GUIDE | VIRTUAL TELECOMS LAB</span><h2>ETT-101 Simulator Guide &amp; Issue Support</h2></div><button className="icon-button" aria-label="Close" onClick={() => setAboutOpen(false)}>✕</button></div><div className="saved-project-list"><div className="saved-project" style={{ gridTemplateColumns: '1fr' }}><div className="saved-project-meta"><strong>1. Basics &amp; Screen Controls</strong><span>Drag OUT to IN sockets (multi-fanout supported, compatible jacks highlight), adjust knobs/switches, wire CH1–CH4, press Run/Single, and tune Auto Setup, V/DIV, TIME/DIV, POS, H POS, CAPTURE, and Spectrum peaks.</span></div></div><div className="saved-project" style={{ gridTemplateColumns: '1fr' }}><div className="saved-project-meta"><strong>2. Troubleshooting &amp; Key Notes</strong><span>Blank screen: Run + wire channel + Auto Setup. Red module: connect missing input. Unstable/NO TRIG: adjust Trigger level/source or Auto. Scaling: V/DIV. Notes: Adder inverts polarity; 2kHz SINE is intentionally 2.083kHz; VCO GAIN sets modulation sensitivity; Speech needs mic permission.</span></div></div><div className="saved-project" style={{ gridTemplateColumns: '1fr' }}><div className="saved-project-meta"><strong>3. Quick Try &amp; Lab Book</strong><span>Wire 2kHz SINE (Master Signals) to CH1, press Run, vary TIME/DIV &amp; V/DIV, then patch to Buffer and raise Gain until clipping before following your lab manual step by step.</span></div></div><div className="saved-project" style={{ gridTemplateColumns: '1fr auto', borderBottom: 0 }}><div className="saved-project-meta"><strong>Simulator issue or bug?</strong><span>Contact the developer directly on Telegram (@VirtualTelecomsLab_bot) to report any simulator issue and get it fixed.</span></div><a className="open-project-button" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', background: '#b3362d', borderColor: '#b3362d', color: '#ffffff' }} href="https://t.me/VirtualTelecomsLab_bot?start=bug_report" target="_blank" rel="noopener noreferrer">REPORT ISSUE</a></div></div><div className="modal-footer"><span>© 2026 Abdalla Abdelmagid</span><button className="subtle-button" onClick={() => setAboutOpen(false)}>CLOSE</button></div></div></div>)}</>
   </div>;
 }
 
